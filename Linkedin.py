@@ -18,13 +18,13 @@
 
 # In[169]:
 
-
+# Import selenium to scrape job postings
 from selenium import webdriver
 import time
 import pandas as pd
 import os
 
-
+# Import libraries necessary for email interaction
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -32,13 +32,13 @@ from email.mime.text import MIMEText
 
 # In[170]:
 
-
+# save the url you want to open in a variable
 url="https://www.linkedin.com/jobs/search/?currentJobId=3170092398&geoId=105149290&keywords=coop%20data%20analyst&location=Ontario%2C%20Canada&refresh=true"
 
 
 # In[171]:
 
-
+# change directory to suitable one where .py file is located
 
 os.chdir('/Users/tony/Desktop/')
 
@@ -46,7 +46,7 @@ os.chdir('/Users/tony/Desktop/')
 # In[172]:
 
 
-#headless mode
+#headless mode : indirects that the code will run without opening any window, requires chrome
 options = webdriver.ChromeOptions()
 options.add_argument("headless")
 wd = webdriver.Chrome(options=options)
@@ -59,6 +59,7 @@ wd.get(url)
 
 # In[173]:
 
+# Actual web scrapping begins
 
 # lists no. of job posting
 import re
@@ -85,6 +86,7 @@ while i <= int(no_of_jobs/25)+1:
 
 # In[175]:
 
+# get a list of jobs
 
 job_lists = wd.find_element('class name','jobs-search__results-list')
 jobs = job_lists.find_elements('tag name','li') # return a list
@@ -92,6 +94,7 @@ jobs = job_lists.find_elements('tag name','li') # return a list
 
 # In[176]:
 
+# extracting important parameters from html
 
 job_id= []
 job_title = []
@@ -122,6 +125,7 @@ for job in jobs:
 
 # In[177]:
 
+# Creating a dataframe and adding all obtained data to a dataframe
 
 df=pd.DataFrame([])
 df=pd.DataFrame({'Title':job_title,'Company_name':company_name,'Location':location,'Date':date,'Job Link':job_link})
@@ -129,13 +133,14 @@ df=pd.DataFrame({'Title':job_title,'Company_name':company_name,'Location':locati
 
 # In[178]:
 
-
+# printing the dataframe
 df
 
 
 # In[179]:
 
 
+# connecting to google sheets
 
 import gspread
 from gspread_dataframe import set_with_dataframe
@@ -148,12 +153,14 @@ scopes = ["https://spreadsheets.google.com/feeds",'https://www.googleapis.com/au
 
 # In[180]:
 
+# get the json file located on your local device obtained from google's service account
 
 credentials = Credentials.from_service_account_file(filename='lucid-destiny-344212-cbbebad672a7.json',scopes=scopes)
 
 
 # In[181]:
 
+# authenticate google sheets
 
 gc = gspread.authorize(credentials)
 
@@ -177,6 +184,7 @@ drive = GoogleDrive(gauth)
 
 # In[183]:
 
+# Google sheet operations
 
 open_sheet = gc.open_by_url('https://docs.google.com/spreadsheets/d/1RnwjV0Qd_OdMWSRLoVsUOs_mKn5DEgMDOwD0Hhsc0Kg/edit#gid=0').sheet1   
 data = open_sheet.get_all_records() 
@@ -193,29 +201,13 @@ df2
 
 # In[185]:
 
-
+# Drop duplicates 
 df3=pd.concat([df2,df])
 #print(len(df3))
 #print(len(df3)-len(df3.drop_duplicates(subset=['Title','Company_name','Location','Date'])))
 #df3.reset_index().drop_duplicates(subset=['Title','Company_name','Location','Date'])
 df3.drop_duplicates(keep='first',inplace=True, subset=['Title','Company_name','Location','Date'])
 
-
-# In[186]:
-
-
-# # San
-# df.sort_values(by='Title').head()
-
-
-# # In[187]:
-
-
-# # San
-# df2[['Title','Company_name','Location','Date']].sort_values(by='Title').head()
-
-
-# In[188]:
 
 
 df.drop(['Job Link'],axis = 1).isin(df2[['Title','Company_name','Location','Date']])#.all(axis=1)
@@ -233,26 +225,13 @@ df3_no_dups = df3.drop_duplicates(keep='first', subset=['Title','Company_name','
 length=df3_no_dups[~df3_no_dups[['Title','Company_name','Location','Date']].isin(df2[['Title','Company_name','Location','Date']]).all(axis=1)]
 
 
-# In[191]:
-
-
-#df3_no_dups
-
-
-# In[192]:
-
-
-
 
 if len(length)!=0:
-#     New_df=df3.drop_duplicates(subset=['Title','Company_name','Location','Date'],keep=False)
-#     New_df['Title_and_name']=New_df['Title']+"="+New_df['Company_name']
-#     New_df['Title_and_name'].to_string()
-    
+
     mail_content = length.Title.to_string(index=False)
-    sender_address = 'kaizenware.studios@gmail.com'
-    sender_pass = 'efimdkbgzzhdckwd'
-    receiver_address = ['sanford.6458@gmail.com','jessicadsouza97@gmail.com']
+    sender_address = 'kaizenware.@.com'
+    sender_pass = ''
+    receiver_address = ['sanford@gmail.com','@.com']
 
     message = MIMEMultipart()
     message['From'] = sender_address
@@ -268,16 +247,9 @@ if len(length)!=0:
     session.sendmail(sender_address, receiver_address, text)
     session.quit()
     
-    #print('Mail Sent')
-    
+ 
 
 
-# In[193]:
-
-
-# worksheet1=sheet.worksheet('Sheet1')
-# worksheet1.clear()
-#worksheet1 = open_sheet.worksheet('Sheet1')
 open_sheet.clear()
 set_with_dataframe(worksheet=open_sheet, dataframe=df3_no_dups, include_index=False,include_column_header=True)
 
